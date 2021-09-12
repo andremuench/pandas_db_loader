@@ -110,7 +110,7 @@ class StandardExecutionGenerator(AbstractExecutionGenerator):
                     continue
                 elif role and role == ColumnRole.TRACK_UPDATE:
                     yield f"[{col.name}] = CURRENT_TIMESTAMP"
-                elif col in join_columns:
+                elif col.name in [c.name for c in join_columns]:
                     continue
                 else:
                     source_col = source.c[col.name]
