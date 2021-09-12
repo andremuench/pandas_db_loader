@@ -1,3 +1,4 @@
+from pandas_loader.gen import FullMerge
 from pandas_loader.util import recreate_table
 from sqlalchemy import MetaData, Table
 from sqlalchemy.engine import create_engine
@@ -45,7 +46,7 @@ def country_fix():
     n = datetime.utcnow()
     loader = PandasLoad(engine=engine)
 
-    loader.load_db(country, df)
+    loader.load_db(country, df, FullMerge)
 
     df1 = pd.read_sql_table(country.name, engine, schema=country.schema)
     df1 = df1.set_index("code")

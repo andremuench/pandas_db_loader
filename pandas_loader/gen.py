@@ -29,26 +29,6 @@ def _filter_insert_cols(columns: List[Column], source: Table) -> Iterator[Any]:
             pass
 
 
-def _generate_update_set(
-    source: Alias, target: Table, join_columns: List[Column] = None
-) -> Iterator[str]:
-    # TODO: Generalize MSSQL expression CURRENT_TIMESTAMP
-    for col in target.columns:
-        try:
-            role = col.info.get("role")
-            if role and role == ColumnRole.TRACK_INSERT:
-                continue
-            elif role and role == ColumnRole.TRACK_UPDATE:
-                yield f"[{col.name}] = CURRENT_TIMESTAMP"
-            elif col in join_columns:
-                continue
-            else:
-                source_col = source.c[col.name]
-                yield f"[{col.name}] = {source.name}.[{source_col.name}]"
-        except KeyError:
-            pass
-
-
 class AbstractExecutionGenerator:
     @abstractmethod
     def __call__(
@@ -119,14 +99,43 @@ class StandardExecutionGenerator(AbstractExecutionGenerator):
         )
         return expr
 
+    def _generate_update_set(
+        self, source: Alias, target: Table, join_columns: List[Column] = None
+    ) -> Iterator[str]:
+        # TODO: Generalize MSSQL expression CURRENT_TIMESTAMP
+        for col in target.columns:
+            try:
+                role = col.info.get("role")
+                if role and role == ColumnRole.TRACK_INSERT:
+                    continue
+                elif role and role == ColumnRole.TRACK_UPDATE:
+                    yield f"[{col.name}] = CURRENT_TIMESTAMP"
+                elif col in join_columns:
+                    continue
+                else:
+                    source_col = source.c[col.name]
+                    yield f"[{col.name}] = {source.name}.[{source_col.name}]"
+            except KeyError:
+                pass
+
     def update(
         self, source: Table, target: Table, join_columns: List[Column] = None
     ) -> str:
+        """Creates a declarative SQL UPDATE stmt to update all values in the target table.
+
+        Args:
+            source (Table): Source table
+            target (Table): Target table
+            join_columns (List[Column], optional): Join columns, defaults to primary keys.
+
+        Returns:
+            [str]: Update statement
+        """
         if not join_columns:
             join_columns = _primary_cols(target.alias("t"))
 
         update_set = "\n,".join(
-            _generate_update_set(source.alias("s"), target, join_columns)
+            self._generate_update_set(source.alias("s"), target, join_columns)
         )
 
         # TODO: Check if aliasing is neccessary here
@@ -150,3 +159,7 @@ class StandardExecutionGenerator(AbstractExecutionGenerator):
             yield self.update(source, target, join_columns)
         if self.enable_insert:
             yield self.insert(source, target, join_columns)
+
+
+FullMerge = StandardExecutionGenerator(insert=True, update=True, delete=True)
+Upsert = StandardExecutionGenerator(insert=True, update=True, delete=False)

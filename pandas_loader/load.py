@@ -2,7 +2,7 @@ from abc import abstractmethod
 from pandas.core.frame import DataFrame
 from sqlalchemy import Table
 from sqlalchemy.engine.base import Engine
-from .gen import AbstractExecutionGenerator, StandardExecutionGenerator
+from .gen import AbstractExecutionGenerator, FullMerge
 from .util import derive_staging, recreate_table
 import logging
 
@@ -30,7 +30,7 @@ class PandasLoad:
         self,
         target: Table,
         dataframe: DataFrame,
-        execution_generator: AbstractExecutionGenerator = StandardExecutionGenerator(),
+        execution_generator: AbstractExecutionGenerator = FullMerge,
         db_loader: AbstractDbLoader = PandasDbLoader(),
     ):
         source = derive_staging(target, list(dataframe.columns))
