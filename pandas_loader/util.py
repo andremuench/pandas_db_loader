@@ -2,6 +2,7 @@ from sqlalchemy import Table, MetaData, Column
 from typing import Iterator, List
 
 from sqlalchemy.engine.base import Engine
+from sqlalchemy.inspection import inspect
 from .models import ColumnRole
 import logging
 
@@ -41,7 +42,7 @@ def derive_staging(table: Table, include_columns: List[str] = None, schema="stag
 
 
 def recreate_table(table: Table, engine: Engine):
-    if table.exists(bind=engine):
+    if inspect(engine).has_table(table.name, schema=table.schema):
         logging.info(f"Dropping table {table}")
         table.drop(bind=engine)
     logging.info(f"Creating table {table}")
