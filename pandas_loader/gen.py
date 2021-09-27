@@ -4,7 +4,7 @@ from typing import Any, Iterator, List, Union
 
 from sqlalchemy.sql.dml import Delete, Executable
 from sqlalchemy.sql.elements import literal_column
-from sqlalchemy.sql.expression import select
+from sqlalchemy.sql.expression import delete, select
 from sqlalchemy.sql.selectable import Alias
 from .models import ColumnRole
 
@@ -159,6 +159,45 @@ class StandardExecutionGenerator(AbstractExecutionGenerator):
             yield self.update(source, target, join_columns)
         if self.enable_insert:
             yield self.insert(source, target, join_columns)
+
+
+class LevelDeleteExecutionGenerator(StandardExecutionGenerator):
+
+    def __init__(self, levels=1, insert: bool = True, update: bool = True, delete: bool = True):
+        super().__init__(insert=insert, update=update, delete=delete)
+        self.levels = levels
+
+    def delete(self, source: Table, target: Table, join_columns: List[Column] = None
+    ) -> Delete:
+        """Creates a declarative SQL DELETE stmt to delete all that is not in the source and compared by join_columns on the given level
+
+        Args:
+            source (Table): Source table
+            target (Table): Target table
+            join_columns (List[Column], optional): Join columns, defaults to primary keys.
+
+        Returns:
+            [Delete]: Delete statement
+        """
+        if not join_columns:
+            join_columns = _primary_cols(target)
+
+        if not [c.info.get("level") for c in join_columns]:
+            raise ValueError("No leveled join columns given")
+        expr = target.delete().where(and_(
+            ~exists(
+                source.select().where(
+                    and_(*[c == source.c[c.name] for c in join_columns])
+                )
+            ).correlate(target),
+            exists(
+                source.select().where(
+                    and_(*[c == source.c[c.name] for c in join_columns if c.info.get("level") <= self.levels])
+                )
+            ).correlate(target)
+        ))
+        print(str(expr))
+        return expr
 
 
 FullMerge = StandardExecutionGenerator(insert=True, update=True, delete=True)
