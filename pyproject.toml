@@ -8,7 +8,7 @@ authors = ["Andre Muench <andre.muench@statworx.com>"]
 
 [tool.poetry.dependencies]
 python = "^3.8"
-pandas = "^1.3.2"
+pandas = "^1.1.0"
 SQLAlchemy = "1.4.15"
 
 [tool.poetry.dev-dependencies]
