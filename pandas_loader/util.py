@@ -42,7 +42,7 @@ def derive_staging(table: Table, include_columns: List[str] = None, schema="stag
 
 
 def recreate_table(table: Table, engine: Engine):
-    if inspect(engine).has_table(table.name, schema=table.schema):
+    if table.name in inspect(engine).get_table_names(schema=table.schema):
         logging.info(f"Dropping table {table}")
         table.drop(bind=engine)
     logging.info(f"Creating table {table}")
