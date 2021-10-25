@@ -4,7 +4,7 @@ from sqlalchemy import MetaData, Table
 from sqlalchemy.engine import create_engine
 from sqlalchemy.sql.schema import Column
 from sqlalchemy.sql.sqltypes import DateTime, String
-from pandas_loader.load import PandasLoad
+from pandas_loader.load import PandasBulkDbLoader, PandasLoad
 from pandas_loader.models import ColumnRole
 import pandas as pd
 import logging
@@ -19,7 +19,7 @@ logging.basicConfig(level=logging.DEBUG)
 @pytest.fixture
 def country_fix():
     engine = create_engine(
-        f"mssql+pymssql://{os.environ.get('DB_USER')}:{os.environ.get('DB_PASSWD')}@localhost:1433/local"
+        f"mssql+pymssql://{os.environ.get('DB_USER') or 'sa'}:{os.environ.get('DB_PASSWD') or 'Random123!'}@localhost:1433/local"
     )
 
     dbo_meta = MetaData(schema="dbo")
@@ -37,6 +37,7 @@ def country_fix():
     df0 = pd.DataFrame({"code": ["DE", "??"], "name": ["Doitschland", "blubblub"]})
 
     recreate_table(country, engine=engine)
+    print(f"Recreating {country.name}")
     df0.to_sql(
         country.name, engine, schema=country.schema, if_exists="append", index=False
     )
@@ -46,13 +47,13 @@ def country_fix():
     n = datetime.utcnow()
     loader = PandasLoad(engine=engine)
 
-    loader.load_db(country, df, FullMerge)
+    loader.load_db(country, df, FullMerge, db_loader=PandasBulkDbLoader(engine))
 
     df1 = pd.read_sql_table(country.name, engine, schema=country.schema)
     df1 = df1.set_index("code")
 
     yield n, df1
-    country.drop(bind=engine)
+    #country.drop(bind=engine)
 
 
 def test_update_val(country_fix):
